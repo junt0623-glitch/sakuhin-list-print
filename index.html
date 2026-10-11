@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>作品リスト印刷工房</title>
+<style>
+/* レイアウト：左に操作パネル、右にA3横の紙面プレビュー（表面・裏面）。紙面は常に白。 */
+:root{
+  --bg:#eef1f0; --panel:#fbfcfc; --fg:#1d2624; --muted:#5d6b68; --line:#cfd8d5;
+  --accent:#2c6e66; --accent-weak:#dcebe8; --warn:#a2401f; --warn-weak:#f8e4dc; --ok:#2c6e66;
+  --ui:"BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Hiragino Sans","Noto Sans CJK JP","Meiryo",sans-serif;
+  --paper-gothic:"BIZ UDPGothic","Yu Gothic","YuGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans CJK JP","Meiryo",sans-serif;
+  --paper-mincho:"BIZ UDPMincho","Yu Mincho","YuMincho","Hiragino Mincho ProN","Noto Serif CJK JP","MS PMincho",serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a19; --panel:#1c2422; --fg:#e3ebe9; --muted:#9aaba7; --line:#33403d;
+  --accent:#6fb8ad; --accent-weak:#203a36; --warn:#f08a64; --warn-weak:#3a2219; --ok:#6fb8ad; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a19; --panel:#1c2422; --fg:#e3ebe9; --muted:#9aaba7; --line:#33403d;
+  --accent:#6fb8ad; --accent-weak:#203a36; --warn:#f08a64; --warn-weak:#3a2219; --ok:#6fb8ad; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);height:100%}
+.panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px}
+.panel h1{font-size:17px;margin:0;letter-spacing:.04em}
+.panel h1 small{display:block;font-size:11.5px;color:var(--muted);font-weight:normal;letter-spacing:0;margin-top:3px}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:0;padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+legend{font-weight:bold;font-size:12.5px;padding:0 4px;color:var(--accent);letter-spacing:.06em}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+label.r{display:flex;align-items:center;gap:6px;font-size:12.5px}
+input[type=text],input[type=number],select,textarea{font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;width:100%}
+textarea{min-height:70px;resize:vertical;font-size:12px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{min-width:0}
+.grow{flex:1}
+button,.btn{font:inherit;font-size:13px;border:1px solid var(--accent);background:var(--panel);color:var(--accent);border-radius:4px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+button.primary{background:var(--accent);color:var(--panel)}
+button:hover,.btn:hover{background:var(--accent-weak)}
+button.primary:hover{filter:brightness(1.08);background:var(--accent)}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.sm{font-size:12px;padding:3px 7px}
+button.danger{border-color:var(--warn);color:var(--warn)}
+.btn input{display:none}
+.status{font-size:12.5px;padding:8px 10px;border-radius:4px;background:var(--accent-weak);color:var(--fg);line-height:1.5}
+.status.warn{background:var(--warn-weak);color:var(--warn)}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.55;margin:0}
+.hblock{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+.hb-title{font-size:12px;font-weight:bold}
+.w64{width:76px;flex:none}
+.cols{display:grid;grid-template-columns:auto minmax(0,1fr) auto 60px;gap:4px 8px;align-items:center;font-size:12.5px}
+.cols input[type=number]{padding:3px 5px}
+.imglist{display:flex;flex-direction:column;gap:6px}
+.imgitem{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:5px;cursor:pointer}
+.imgitem.sel{border-color:var(--accent);background:var(--accent-weak)}
+.imgitem img{width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--line)}
+.imgitem .nm{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selctl{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+
+.stage{overflow:auto;padding:16px 16px 60px;position:relative}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;position:sticky;top:0;z-index:5;background:var(--bg);padding-block:4px}
+.toolbar .lbl{font-size:12px;color:var(--muted)}
+.sidecap{font-size:12px;color:var(--muted);margin:14px 0 6px;letter-spacing:.08em}
+.wrap{position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18),0 6px 20px rgba(0,0,0,.08);background:#fff}
+.dropping .wrap{outline:3px dashed var(--accent);outline-offset:4px}
+
+/* ===== 紙面（印刷物）: 単位はmmとpt ===== */
+.sheet{width:420mm;height:297mm;background:#fff;color:#111;position:absolute;left:0;top:0;transform-origin:0 0;
+  display:grid;grid-template-columns:1fr 1fr;column-gap:var(--gut,14mm);padding:10mm 12mm;
+  font-family:var(--paper-font);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0;height:277mm}
+.p-head{display:flex;align-items:baseline;justify-content:space-between;gap:4mm;padding-bottom:1.6mm;margin-bottom:2.5mm;position:relative;flex:none}
+.p-head.rule,.l-title.rule{border-bottom:.35mm solid #111}
+.p-head .t{line-height:1.3;white-space:pre-wrap}
+.p-head .s{letter-spacing:.15em;white-space:pre-wrap}
+[contenteditable]{outline:none;border-radius:1px;cursor:text;min-width:2em}
+@media screen{
+  [contenteditable]:hover{box-shadow:0 0 0 .3mm #9bb3ae}
+  [contenteditable]:focus{box-shadow:0 0 0 .4mm #2c6e66;background:rgba(44,110,102,.06)}
+  [contenteditable]:empty::before{content:attr(data-ph);color:#9aa}
+}
+.plan{position:relative;height:var(--plan-h);width:var(--plan-w,100%);left:var(--plan-x,0mm);overflow:hidden;flex:none;margin-bottom:3mm;align-self:var(--plan-align,flex-start)}
+.plan.bordered{border:.3mm solid #444}
+.plan-rs,.plan-rw,.plan-rc{display:none}
+@media screen{
+  .plan::after{content:"";position:absolute;inset:0;border:.3mm dashed rgba(44,110,102,.55);pointer-events:none;z-index:15}
+  .plan-rs{display:flex;position:absolute;left:0;right:0;bottom:0;height:4mm;z-index:20;cursor:ns-resize;touch-action:none;align-items:center;justify-content:center;
+    background:linear-gradient(to bottom,transparent 0,transparent 1.2mm,rgba(44,110,102,.85) 1.2mm,rgba(44,110,102,.85) 100%);opacity:.0;transition:opacity .15s}
+  .plan:hover .plan-rs,.plan-rs.on{opacity:1}
+  .plan-rw,.plan-rc{display:block;position:absolute;z-index:21;touch-action:none;opacity:0;transition:opacity .15s}
+  .plan-rw{top:0;bottom:4mm;width:4mm;cursor:ew-resize;background:linear-gradient(to right,transparent 0,transparent 1.2mm,rgba(44,110,102,.85) 1.2mm)}
+  .plan-rw.at-l{left:0;background:linear-gradient(to left,transparent 0,transparent 1.2mm,rgba(44,110,102,.85) 1.2mm)}
+  .plan-rw.at-r{right:0}
+  .plan-rc{bottom:0;width:6mm;height:6mm;cursor:nwse-resize;background:#2c6e66;border:.5mm solid #fff;border-radius:50%}
+  .plan-rc.at-r{right:0}
+  .plan-rc.at-l{left:0;cursor:nesw-resize}
+  .plan:hover .plan-rw,.plan:hover .plan-rc,.plan-rw.on,.plan-rc.on{opacity:1}
+  .plan-rs span{font-family:var(--ui);font-size:10px;color:#fff;line-height:1;margin-top:1.2mm;letter-spacing:.05em}
+}
+.plan .ph{position:absolute;inset:0;border:.4mm dashed #9bb3ae;display:flex;align-items:center;justify-content:center;text-align:center;color:#6e8a85;font-family:var(--ui);font-size:13px;line-height:1.7;padding:6mm}
+.pimg{position:absolute;touch-action:none;cursor:move;user-select:none;-webkit-user-select:none}
+.pimg img{display:block;width:100%;height:auto;pointer-events:none;max-width:none}
+.pimg.sel{outline:.5mm solid #2c6e66;outline-offset:0}
+.ptxt{position:absolute;z-index:5;line-height:1.35;white-space:pre;padding:.6mm 1mm;border:.25mm solid transparent}
+.ptxt.bg{background:#fff}
+.ptxt.box{border-color:currentColor}
+.ptxt.vert{writing-mode:vertical-rl;text-orientation:mixed}
+.ptxt .tx{display:block;outline:none;min-width:1em;min-height:1em;cursor:text}
+.ptxt .grip{position:absolute;left:-3.2mm;top:-3.2mm;width:4.2mm;height:4.2mm;border-radius:50%;background:#2c6e66;border:.5mm solid #fff;cursor:move;touch-action:none;display:none}
+@media screen{
+  .ptxt:hover{outline:.25mm dashed #2c6e66}
+  .ptxt:hover .grip,.ptxt.sel .grip{display:block}
+  .ptxt.sel{outline:.4mm solid #2c6e66}
+}
+.pimg .hd{position:absolute;right:-2.5mm;bottom:-2.5mm;width:5mm;height:5mm;background:#2c6e66;border:.6mm solid #fff;border-radius:50%;cursor:nwse-resize;display:none;touch-action:none}
+.pimg.sel .hd{display:block}
+.l-title{flex:none;margin-bottom:2mm;position:relative;display:flex;flex-direction:column}
+.l-title .t{line-height:1.35;white-space:pre-wrap}
+.l-title .s{font-size:var(--fs-note);line-height:1.4;margin-top:.6mm;white-space:pre-wrap}
+.flow{flex:1;min-height:0;overflow:hidden}
+.flow table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:var(--fs);line-height:1.28}
+.flow th{font-weight:bold;text-align:left;border-top:.35mm solid #111;border-bottom:.25mm solid #111;padding:var(--pad) 1mm;white-space:nowrap;overflow:hidden;font-size:max(9pt,calc(var(--fs) * .9))}
+.flow td{border-bottom:.12mm solid #8a8a8a;padding:var(--pad) 1mm;vertical-align:middle;white-space:pre-line;overflow-wrap:anywhere;word-break:normal}
+.flow td.num,.flow th.num{text-align:right;padding-right:2mm;font-variant-numeric:tabular-nums}
+.flow td.nw{white-space:nowrap;overflow-wrap:normal}
+.flow td.fit{white-space:pre;overflow-wrap:normal}
+.flow td .sx{display:inline-block;transform-origin:0 50%;white-space:pre}
+.flow tr.gs td{border-top:.3mm solid #111}
+.flow td.dim{color:transparent}
+.p-foot{flex:none;font-size:var(--fs-note);line-height:1.45;border-top:.25mm solid #111;padding-top:1.5mm;margin-top:2mm;white-space:pre-line}
+.empty-col{font-family:var(--ui);color:#9aa;font-size:12px}
+
+@media (max-width:820px){
+  .app{grid-template-columns:1fr;height:auto}
+  .panel{border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+  .stage{overflow:auto}
+}
+@media print{
+  @page{size:420mm 297mm;margin:0}
+  html,body{height:auto;background:#fff}
+  .panel,.toolbar,.sidecap,.ph,.pimg .hd,.ptxt .grip{display:none!important}
+  .ptxt{outline:none!important}
+  .app{display:block}
+  .stage{padding:0;overflow:visible}
+  .wrap{width:420mm!important;height:297mm!important;box-shadow:none;outline:none!important;page-break-after:always;break-after:page;overflow:hidden}
+  .wrap:last-of-type{page-break-after:auto;break-after:auto}
+  .sheet{transform:none!important}
+  .pimg.sel{outline:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel" aria-label="設定">
+    <h1>作品リスト印刷工房<small>Excel・スプレッドシートの作品リストを A3両面1枚に組みます</small></h1>
+
+    <div id="status" class="status" role="status">読み込み中…</div>
+
+    <fieldset>
+      <legend>1　作品データ</legend>
+      <div class="row">
+        <label class="btn primary" style="background:var(--accent);color:var(--panel)">Excel / CSV を読み込む<input id="fileData" type="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt"></label>
+      </div>
+      <label class="f" id="sheetSelWrap" hidden>シート<select id="sheetSel"></select></label>
+      <details>
+        <summary style="font-size:12.5px;cursor:pointer">スプレッドシートから貼り付ける</summary>
+        <p class="hint" style="margin-top:6px">Googleスプレッドシートやエクセルで見出し行を含む範囲をコピーし、下の欄に貼り付けて「反映」を押してください。</p>
+        <textarea id="pasteArea" placeholder="ここに貼り付け（1行目は見出し）"></textarea>
+        <div class="row" style="margin-top:6px"><button id="pasteApply" class="sm">反映</button></div>
+      </details>
+      <p class="hint" id="dataInfo"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>2　見出し</legend>
+      <p class="hint">紙面の見出しをクリックすると、その場で書き換えられます（Shift+Enterで改行）。</p>
+      <div class="hblock">
+        <div class="hb-title">平面図の上の見出し</div>
+        <div class="row">
+          <label class="f grow">展覧会名<input id="exName" type="text"></label>
+          <label class="f w64">pt<input id="fsHead" type="number" min="14" max="40" step="0.5"></label>
+        </div>
+        <div class="row">
+          <label class="f grow">右側の語<input id="planLabel" type="text"></label>
+          <label class="f w64">pt<input id="fsSub" type="number" min="14" max="40" step="0.5"></label>
+        </div>
+        <div class="row">
+          <label class="f grow">書体<select id="headFont"></select></label>
+          <label class="f grow">配置<select id="headAlign"><option value="split">両端に分ける</option><option value="left">左寄せ</option><option value="center">中央</option><option value="right">右寄せ</option></select></label>
+        </div>
+        <div class="row">
+          <label class="f w64">左右 mm<input id="headX" type="number" min="-100" max="200" step="0.5"></label>
+          <label class="f w64">上下 mm<input id="headY" type="number" min="-30" max="100" step="0.5"></label>
+          <label class="r"><input id="headBold" type="checkbox">太字</label>
+          <label class="r"><input id="headRule" type="checkbox">下線</label>
+        </div>
+      </div>
+      <div class="hblock">
+        <div class="hb-title">作品リストの見出し</div>
+        <div class="row">
+          <label class="f grow">見出し<input id="listTitle" type="text"></label>
+          <label class="f w64">pt<input id="fsTitle" type="number" min="14" max="40" step="0.5"></label>
+        </div>
+        <div class="row">
+          <label class="f grow">書体<select id="titleFont"></select></label>
+          <label class="f grow">配置<select id="titleAlign"><option value="left">左寄せ</option><option value="center">中央</option><option value="right">右寄せ</option></select></label>
+        </div>
+        <div class="row">
+          <label class="f w64">左右 mm<input id="titleX" type="number" min="-100" max="200" step="0.5"></label>
+          <label class="f w64">上下 mm<input id="titleY" type="number" min="-150" max="100" step="0.5"></label>
+          <label class="r"><input id="titleBold" type="checkbox">太字</label>
+          <label class="r"><input id="titleRule" type="checkbox">下線</label>
+        </div>
+      </div>
+      <label class="f">会期・補足（見出しの下に小さく）<textarea id="listSub" rows="2" style="min-height:44px"></textarea></label>
+      <label class="f">欄外注記（裏面の右下）<textarea id="footNote" rows="2" style="min-height:44px"></textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>3　平面図（表面・左上）</legend>
+      <div class="row">
+        <label class="btn primary" style="background:var(--accent);color:var(--panel)">画像を追加<input id="fileImg" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple></label>
+        <span class="hint">JPEG・PNG、複数可。枠へドラッグでも追加できます。</span>
+      </div>
+      <p class="hint">紙面の枠の下端（緑の帯）で高さ、横の端で幅、角の丸で幅と高さを、ドラッグして変えられます。作品リストは枠のすぐ下へ自動で移ります。</p>
+      <div class="row">
+        <label class="f grow">枠の高さ <span id="planHVal"></span><input id="planH" type="range" min="20" max="250" step="0.5"></label>
+        <label class="f w64">mm<input id="planHNum" type="number" min="20" max="250" step="0.5"></label>
+      </div>
+      <div class="row">
+        <label class="f grow">枠の幅 <span id="planWVal"></span><input id="planWR" type="range" min="30" max="420" step="0.5"></label>
+        <label class="f w64">mm<input id="planWNum" type="number" min="30" max="420" step="0.5"></label>
+      </div>
+      <div class="row">
+        <label class="f grow">枠の位置<select id="planAlign"><option value="left">左寄せ</option><option value="center">中央</option><option value="right">右寄せ</option></select></label>
+        <label class="f w64">左右 mm<input id="planXNum" type="number" min="-150" max="300" step="0.5"></label>
+      </div>
+      <div class="row">
+        <button id="planFull" class="sm">段の幅いっぱいに戻す</button>
+        <button id="planX0" class="sm">位置を元に戻す</button>
+      </div>
+      <p class="hint" id="planWideNote" hidden>枠が段の幅を超えています。右の段の作品リストは枠の下から始まります。紙の端や余白を越えた部分は、プリンターによっては印刷されません。</p>
+      <div class="row">
+        <button id="planSnap" class="sm">画像の下端に合わせる</button>
+        <label class="r"><input id="planAuto" type="checkbox">画像に合わせて自動で変える</label>
+      </div>
+      <label class="r"><input id="planBorder" type="checkbox">枠線を印刷する</label>
+      <div id="imgList" class="imglist"></div>
+      <div id="selCtl" class="selctl" hidden>
+        <label class="f">選択中の画像の大きさ（幅） <span id="selWVal"></span><input id="selW" type="range" min="10" max="400" step="1"></label>
+        <div class="row">
+          <button id="selMinus" class="sm" title="縮小">－ 縮小</button>
+          <button id="selPlus" class="sm" title="拡大">＋ 拡大</button>
+          <button id="selWide" class="sm">幅いっぱい</button>
+          <button id="selFit" class="sm">枠に合わせる</button>
+          <button id="selTrim" class="sm">白い余白を切り取る</button>
+          <button id="selFront" class="sm">最前面へ</button>
+          <button id="selDel" class="sm danger">削除</button>
+        </div>
+        <p class="hint">紙面上の画像はドラッグで移動、右下の丸をドラッグで拡大・縮小。選択中は矢印キーで1mm（Shiftで5mm）移動、＋／－キーで拡大・縮小。</p>
+      </div>
+      <div class="hblock">
+        <div class="hb-title">図面に文字を入れる</div>
+        <div class="row"><button id="txtAdd" class="primary sm">＋ テキストを追加</button><span class="hint">追加した文字は紙面上で直接書き換えられます。</span></div>
+        <div id="txtList" class="imglist"></div>
+        <div id="txtCtl" class="selctl" hidden>
+          <div class="row">
+            <label class="f w64">pt<input id="tSize" type="number" min="6" max="60" step="0.5"></label>
+            <label class="f grow">書体<select id="tFont"></select></label>
+          </div>
+          <label class="f">文字間 <span id="tLsVal"></span><input id="tLs" type="range" min="-0.2" max="1.5" step="0.01"></label>
+          <label class="f">行間 <span id="tLhVal"></span><input id="tLh" type="range" min="0.8" max="3" step="0.05"></label>
+          <div class="row"><button id="tSpReset" class="sm">文字間・行間を標準に戻す</button></div>
+          <div class="row">
+            <label class="f grow">色<select id="tColor"><option value="#111111">黒</option><option value="#c8102e">赤</option><option value="#1f4e9c">青</option><option value="#2c6e66">緑</option><option value="#666666">灰</option><option value="#ffffff">白</option></select></label>
+            <label class="f grow">揃え<select id="tAlign"><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select></label>
+          </div>
+          <div class="row">
+            <label class="r"><input id="tBold" type="checkbox">太字</label>
+            <label class="r"><input id="tVert" type="checkbox">縦書き</label>
+            <label class="r"><input id="tBg" type="checkbox">白い下地</label>
+            <label class="r"><input id="tBox" type="checkbox">枠線</label>
+          </div>
+          <div class="row">
+            <button id="tDup" class="sm">複製</button>
+            <button id="tDel" class="sm danger">削除</button>
+          </div>
+          <p class="hint">文字の左上の丸い取っ手をドラッグして移動します。文字を選んだまま Alt＋矢印キーで1mm（Shiftも押すと5mm）ずつ動かせます。</p>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4　文字と列</legend>
+      <div class="row">
+        <label class="f grow">書体<select id="font"><option value="gothic">ゴシック</option><option value="mincho">明朝</option></select></label>
+        <label class="f grow">行の間隔<select id="pad"><option value="0.9mm">ゆったり</option><option value="0.6mm">標準</option><option value="0.35mm">詰める</option></select></label>
+      </div>
+      <label class="f">作品リストの文字の上限 <span id="fsMaxVal"></span><input id="fsMax" type="range" min="9" max="14" step="0.5"></label>
+      <p class="hint">上限から 0.5pt ずつ小さくして、両面1枚に収まる最大の大きさを自動で選びます（最小 9pt）。</p>
+      <label class="f">区切り線を入れる列<select id="groupCol"></select></label>
+      <label class="r"><input id="groupDim" type="checkbox">同じ値が続くときは2行目以降を省略</label>
+      <div>
+        <div class="row" style="justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">表示する列・1行に縮める列・幅の比率</span><button id="colAuto" class="sm">幅を自動に戻す</button></div>
+        <div id="colsUi" class="cols"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>5　印刷</legend>
+      <button id="printBtn" class="primary">印刷する（A3横・両面）</button>
+      <p class="hint">印刷画面で「用紙サイズ：A3」「向き：横」「余白：なし」「倍率：100%（実際のサイズ）」「両面印刷：短辺で綴じる」を選んでください。PDFに保存する場合は送信先で「PDFに保存」を選びます。</p>
+      <button id="resetBtn" class="sm danger">設定と画像を初期状態に戻す</button>
+      <div id="resetConfirm" class="row" hidden><span class="hint">画像も消えます。よろしいですか？</span><button id="resetYes" class="sm danger">戻す</button><button id="resetNo" class="sm">やめる</button></div>
+    </fieldset>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="toolbar">
+      <span class="lbl">表示倍率</span>
+      <select id="zoom" style="width:auto"><option value="fit">幅に合わせる</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select>
+      <span class="lbl" id="fitInfo"></span>
+    </div>
+    <div class="sidecap">表面</div>
+    <div class="wrap" id="wrapA"><div class="sheet" id="sheetA">
+      <div class="col" id="c0">
+        <div class="p-head" id="pHead"><div class="t" id="pExName" contenteditable="true" spellcheck="false" data-ph="展覧会名" data-key="exName"></div><div class="s" id="pPlanLabel" contenteditable="true" spellcheck="false" data-ph="順路案内" data-key="planLabel"></div></div>
+        <div class="plan" id="plan"><div class="plan-rs" id="planRs" title="ドラッグで枠の高さを変更"><span id="planRsLbl"></span></div><div class="plan-rw at-r" id="planRw" title="ドラッグで枠の幅を変更"></div><div class="plan-rc at-r" id="planRc" title="ドラッグで枠の幅と高さを変更"></div><div class="ph" id="planPh">展示室平面図の画像をここにドラッグ<br>または左の「画像を追加」から読み込み</div></div>
+        <div class="l-title" id="pTitleBox"><div class="t" id="pListTitle" contenteditable="true" spellcheck="false" data-ph="作品リストの見出し" data-key="listTitle"></div><div class="s" id="pListSub" contenteditable="true" spellcheck="false" data-ph="会期・補足" data-key="listSub"></div></div>
+        <div class="flow" id="f0"></div>
+      </div>
+      <div class="col" id="c1"><div class="flow" id="f1"></div></div>
+    </div></div>
+    <div class="sidecap">裏面</div>
+    <div class="wrap" id="wrapB"><div class="sheet" id="sheetB">
+      <div class="col" id="c2"><div class="flow" id="f2"></div></div>
+      <div class="col" id="c3"><div class="flow" id="f3"></div><div class="p-foot" id="pFoot" hidden contenteditable="true" spellcheck="false" data-key="footNote"></div></div>
+    </div></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const DEFAULT_DATA = {"sheet": "作品リスト_やきもの見本展_20260101", "headers": ["No.", "章", "作品名", "産地（作者）", "時代", "所蔵"], "rows": [["00", "", "展示室A（見本）", "設計者名（基本設計・監修）\n設計事務所名（増改築設計）", "2000年（開館）／2010年（増築）", ""], ["1", "第一章", "青磁碗", "中国　龍泉窯", "南宋時代（12〜13世紀）", "当館蔵"], ["2", "第一章", "白磁壺", "中国　景徳鎮窯", "元時代（14世紀）", "個人蔵"], ["3", "第一章", "灰陶家屋", "中国", "後漢時代（1〜2世紀）", "○○氏寄贈"], ["4", "第一章", "緑釉三層楼閣", "中国", "後漢時代（1〜2世紀）", "○○氏寄贈"], ["5", "第二章", "染付山水図皿", "日本　瀬戸", "江戸時代後期（19世紀）", "当館蔵"], ["6", "第二章", "銅版転写藍絵楼閣山水図皿", "イングランド", "19世紀中～後半頃", "△△氏寄贈"], ["7", "第二章", "赤絵楼閣図鉢", "日本　犬山焼／丸山窯", "明治時代（19世紀）", "当館蔵"], ["8", "第三章", "鬼瓦（部分）", "日本　猿投窯\n（○○大学構内窯跡）", "平安時代末期～鎌倉時代初期\n（12～13世紀初頭）", "○○大学考古学研究室寄贈"], ["9", "第三章", "施釉瓦\n(緑釉／黄瀬戸／鉄釉)", "作者名・他", "昭和10〜40年代\n（1930〜1960年代）", "当館蔵"], ["10", "第三章", "作品64", "作者名", "昭和39(1964)年", "国立研究開発法人○○研究所\n中部センター（当館管理）"]]};
+const KEY = "sakuhin-list-print-v4", OLD_KEYS = ["sakuhin-list-print-v3","sakuhin-list-print-v2","sakuhin-list-print-v1"];
+const MM = 96/25.4;               // CSS px per mm
+const $ = id => document.getElementById(id);
+
+/* ---------- 状態 ---------- */
+function defaultState(){
+  const name = (DEFAULT_DATA.sheet.match(/作品リスト_(.+?)_\d{6,8}/)||[])[1] || "";
+  return {
+    headers: DEFAULT_DATA.headers.slice(),
+    rows: DEFAULT_DATA.rows.map(r=>r.slice()),
+    source: "見本データ：" + DEFAULT_DATA.sheet,
+    exName: name ? "「"+name+"」" : "",
+    planLabel: "順路案内",
+    listTitle: name ? "「"+name+"」作品リスト" : "作品リスト",
+    listSub: "",
+    footNote: "",
+    fsHead: 16, fsSub: 14, fsTitle: 14, fsMax: 12,
+    headFont: "list", headAlign: "split", headX: 0, headY: 0, headBold: true, headRule: true,
+    titleFont: "list", titleAlign: "left", titleX: 0, titleY: 0, titleBold: true, titleRule: false,
+    planH: 120, planBorder: false, planAuto: true, planW: null, planAlign: "left", planX: 0,
+    font: "gothic", pad: "0.6mm",
+    groupCol: guessGroupCol(DEFAULT_DATA.headers, DEFAULT_DATA.rows),
+    groupDim: false,
+    cols: DEFAULT_DATA.headers.map(()=>({show:true,w:null})),
+    images: [], texts: [], zoom: "fit"
+  };
+}
+function guessGroupCol(h, rows){
+  for(let i=0;i<h.length;i++){
+    if(/^(章|層|部|セクション|コーナー|区分)/.test(h[i])) return i;
+  }
+  for(let i=1;i<Math.min(h.length,3);i++){
+    const vals = rows.map(r=>r[i]||"");
+    const uniq = new Set(vals).size;
+    if(uniq>1 && uniq < vals.length/3 && !vals.every(v=>/^\d+$/.test(v))) return i;
+  }
+  return -1;
+}
+let S = defaultState();
+try{
+  let saved = JSON.parse(localStorage.getItem(KEY)||"null");
+  if(!saved){ // 旧版の設定を引き継ぐ。見本データのままなら新しい見本データに差し替える
+    let old = null; for(const k of OLD_KEYS){ old = JSON.parse(localStorage.getItem(k)||"null"); if(old) break; }
+    if(old && old.headers){
+      saved = old;
+      if(String(old.source||"").startsWith("見本データ")){ const d=defaultState(); saved.headers=d.headers; saved.rows=d.rows; saved.cols=d.cols; }
+    }
+  }
+  if(saved && saved.headers) S = Object.assign(defaultState(), saved);
+}catch(e){}
+let selId = null, saveTimer = null, saveWarned = false;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+    catch(e){
+      try{ localStorage.setItem(KEY, JSON.stringify(Object.assign({},S,{images:[]}))); }catch(e2){}
+      if(!saveWarned && S.images.length){ saveWarned=true; setStatus("画像が大きいため、ブラウザに保存できるのは文字と設定だけです。次回開いたときは画像を入れ直してください。", true, 6000); }
+    }
+  }, 400);
+}
+
+/* ---------- 文字幅（em単位。実際の書体で測る。測れない環境では全角=1、半角=0.6） ---------- */
+const measureCtx = (()=>{ try{ return document.createElement("canvas").getContext("2d"); }catch(e){ return null; } })();
+const lineCache = new Map();
+function paperFontStack(){
+  return getComputedStyle(document.documentElement).getPropertyValue(S.font==="mincho" ? "--paper-mincho" : "--paper-gothic").trim();
+}
+function lineW(line){
+  const key = S.font + "|" + line;
+  if(lineCache.has(key)) return lineCache.get(key);
+  let w = 0;
+  if(measureCtx){ measureCtx.font = "100px " + paperFontStack(); w = measureCtx.measureText(line).width/100; }
+  else{ for(const ch of line){ w += ch.charCodeAt(0) < 0x2E80 && !/[\u2010-\u2027\u3000]/.test(ch) ? 0.6 : 1; } }
+  w *= 1.02; // 印刷時の字幅の揺れを見込む
+  lineCache.set(key, w);
+  return w;
+}
+function textW(s){
+  let m=0;
+  for(const line of String(s).split("\n")){ const w=lineW(line); if(w>m) m=w; }
+  return m;
+}
+function isNumCol(i){ return S.rows.length && S.rows.every(r=>/^\s*[0-9０-９\-－]*\s*$/.test(r[i]||"")); }
+
+const FIT_MIN = 9; // 1行に収めるときの最小の文字サイズ（pt）
+function fitDefault(h){ return true; }
+function isFit(i){ const c=S.cols[i]; return !!c && (c.fit==null ? fitDefault(S.headers[i]) : c.fit) && !numCols[i]; }
+function visibleCols(){ return S.headers.map((h,i)=>i).filter(i=>S.cols[i] && S.cols[i].show); }
+function autoWidths(){ // 各列の最長行の文字数（em）
+  const w = {};
+  for(const i of visibleCols()){
+    let m = textW(S.headers[i]) * 0.9;
+    for(const r of S.rows) m = Math.max(m, textW(r[i]||""));
+    w[i] = m;
+  }
+  return w;
+}
+const MIN_SX = 0.72; // 9ptでも入らないときの長体（横方向の縮小）の下限
+function colWidths(fs){ // 戻り値は % 。短い列は折り返さない幅、「1行」列は最長行が入る幅、残りを他の列で分け合う
+  fs = fs || S.fsMax;
+  const vis = visibleCols(), w = {};
+  if(vis.some(i=>S.cols[i].w!=null)){
+    const a = colWidths.auto || {}; let sum=0;
+    for(const i of vis){ w[i] = S.cols[i].w!=null ? S.cols[i].w : (a[i]||10); sum+=w[i]; }
+    for(const i of vis) w[i] = w[i]/sum*100;
+    return w;
+  }
+  const a = autoWidths(), PAD = 2.4/(fs*25.4/72); // セル左右の余白（em）
+  const availEm = planW() / (fs*25.4/72);
+  const shortIdx = vis.filter(i=>a[i] <= 5.5), longIdx = vis.filter(i=>a[i] > 5.5);
+  let used = 0;
+  for(const i of shortIdx){ w[i] = a[i] + PAD + (numCols[i]?0.6:0.2); used += w[i]; }
+  shortCols = new Set(shortIdx);
+  let rest = Math.max(availEm - used, longIdx.length*3);
+  const fitIdx = longIdx.filter(i=>isFit(i)), freeIdx = longIdx.filter(i=>!isFit(i));
+  const lineWs = i => S.rows.map(r=>String(r[i]||"").split("\n").map(textW));
+  // 「1行」列：最長行（極端に長い行は除く）
+  const maxL = {};
+  for(const i of fitIdx){ let m = textW(S.headers[i]); for(const ls of lineWs(i)) for(const x of ls) if(x<=30) m=Math.max(m,x); maxL[i]=m; }
+  const freeMin = freeIdx.reduce((s,i)=>s + Math.max(4, textW(S.headers[i])) + PAD, 0);
+  const F = rest - freeMin;
+  const sumL = fitIdx.reduce((s,i)=>s+maxL[i],0), sumP = fitIdx.length*PAD;
+  let k = 1; // 最長行に掛ける倍率（1=縮小なし、9/fs=9pt、それ未満は長体）
+  if(fitIdx.length){
+    if(sumL + sumP > F) k = Math.max((F - sumP)/sumL, (FIT_MIN/fs)*MIN_SX);
+    for(const i of fitIdx) w[i] = maxL[i]*k + PAD;
+  }
+  let budget = rest - fitIdx.reduce((s,i)=>s+w[i],0);
+  if(freeIdx.length){
+    // 行数の合計が最も少なくなるように、残りの列へ幅を配る
+    const L = freeIdx.map(lineWs), hdrW = freeIdx.map(i=>textW(S.headers[i]));
+    const cw = freeIdx.map((i,q)=>Math.max(4, hdrW[q]) + PAD);
+    budget -= cw.reduce((s,x)=>s+x,0);
+    const linesOf = (q, width) => L[q].map(ls=>ls.reduce((s,x)=>s+Math.max(1,Math.ceil(x/(width-PAD)-1e-6)),0));
+    const total = cols => { let s=0; for(let r=0;r<S.rows.length;r++){ let m=1; for(const c of cols) if(c[r]>m) m=c[r]; s+=m; } return s; };
+    let cur = freeIdx.map((i,q)=>linesOf(q,cw[q])), curT = total(cur), guard=0;
+    const th = freeIdx.map((i,q)=>{ const set=new Set(); for(const ls of L[q]) for(const x of ls) for(let n=1;n<=6;n++) set.add(Math.round((x/n+PAD)*100)/100+0.02); return [...set].sort((p,q)=>p-q); });
+    while(budget > 0.01 && guard++ < 400){
+      let best=null;
+      for(let q=0;q<freeIdx.length;q++){
+        for(const x of th[q].filter(x=>x>cw[q]+1e-6 && x-cw[q]<=budget).slice(0,10)){
+          const trial=cur.slice(); trial[q]=linesOf(q,x);
+          const gain=(curT-total(trial))/(x-cw[q]);
+          if(gain>0 && (!best || gain>best.gain)) best={q,x,gain,L:trial[q]};
+        }
+      }
+      if(!best) break;
+      budget -= best.x-cw[best.q]; cw[best.q]=best.x; cur[best.q]=best.L; curT=total(cur);
+    }
+    freeIdx.forEach((i,q)=>w[i]=cw[q]);
+  }
+  if(budget > 0){ // 余った幅は長い列に比例して配る
+    const s = longIdx.reduce((a,i)=>a+w[i],0);
+    for(const i of longIdx) w[i] += budget*w[i]/s;
+  }
+  let sum=0; for(const i of vis) sum+=w[i];
+  for(const i of vis) w[i] = w[i]/sum*100;
+  colWidths.auto = Object.assign({}, w);
+  return w;
+}
+
+/* ---------- 紙面への反映 ---------- */
+const flows = [ $("f0"), $("f1"), $("f2"), $("f3") ];
+function applyVars(fs){
+  const st = document.documentElement.style;
+  st.setProperty("--fs", fs+"pt");
+
+  st.setProperty("--fs-note", Math.max(9, Math.min(11, fs))+"pt");
+  st.setProperty("--pad", S.pad);
+  st.setProperty("--plan-h", planHeight()+"mm");
+  applyPlanW();
+  st.setProperty("--paper-font", S.font==="mincho" ? "var(--paper-mincho)" : "var(--paper-gothic)");
+}
+function makeTable(vis, widths){
+  const t = document.createElement("table");
+  const cg = document.createElement("colgroup");
+  for(const i of vis){ const c=document.createElement("col"); c.style.width = widths[i]+"%"; cg.appendChild(c); }
+  t.appendChild(cg);
+  const th = document.createElement("thead"), tr = document.createElement("tr");
+  for(const i of vis){ const c=document.createElement("th"); c.textContent=S.headers[i]; if(numCols[i]) c.className="num"; tr.appendChild(c); }
+  th.appendChild(tr); t.appendChild(th);
+  t.appendChild(document.createElement("tbody"));
+  return t;
+}
+let numCols = {}, shortCols = new Set();
+function buildRows(vis, widths, fs){
+  const colMm = {}; for(const i of vis) colMm[i] = widths[i]/100*planW();
+  const out = [];
+  let prev = null;
+  S.rows.forEach((r, k)=>{
+    const tr = document.createElement("tr");
+    const g = S.groupCol>=0 ? (r[S.groupCol]||"") : null;
+    if(S.groupCol>=0 && k>0 && g!==prev) tr.className="gs";
+    for(const i of vis){
+      const td = document.createElement("td");
+      td.textContent = r[i]||"";
+      if(numCols[i]) td.className = "num";
+      if(numCols[i] || shortCols.has(i)) td.classList.add("nw");
+      else if(isFit(i) && r[i]){
+        // 改行位置ごとに1行で収まる文字サイズを求める（0.5pt刻み、最小9pt）
+        const availPt = (colMm[i] - 2.3) * 72/25.4;
+        const need = textW(r[i]);
+        const size = Math.min(fs, Math.floor(availPt/need*2)/2);
+        if(size >= FIT_MIN){ td.classList.add("fit"); if(size < fs) td.style.fontSize = size+"pt"; }
+        else{
+          // 9ptでも入らないときは、9ptのまま字幅を詰める（長体）
+          const sx = availPt/(need*FIT_MIN);
+          if(sx >= MIN_SX - 1e-6){
+            td.classList.add("fit"); td.style.fontSize = FIT_MIN+"pt"; td.textContent = "";
+            const sp = document.createElement("span"); sp.className="sx"; sp.textContent = r[i]; sp.style.transform = `scaleX(${Math.min(1,sx).toFixed(3)})`;
+            td.appendChild(sp);
+          }
+        }
+      }
+      if(S.groupDim && i===S.groupCol && k>0 && g===prev) td.classList.add("dim");
+      tr.appendChild(td);
+    }
+    prev = g;
+    out.push({tr, g});
+  });
+  return out;
+}
+function flowAt(fs, vis, widths){
+  applyVars(fs);
+  const tables = flows.map(f=>{ f.innerHTML=""; const t=makeTable(vis,widths); f.appendChild(t); return t; });
+  const rows = buildRows(vis, widths, fs);
+  let ci = 0, placed = 0;
+  for(const item of rows){
+    let ok = false;
+    while(ci < flows.length){
+      const body = tables[ci].tBodies[0];
+      body.appendChild(item.tr);
+      if(tables[ci].offsetHeight <= flows[ci].clientHeight + 0.5){ ok = true; break; }
+      body.removeChild(item.tr);
+      if(!body.rows.length){ ci = flows.length; break; } // 1行も入らない
+      ci++;
+    }
+    if(!ok) break;
+    // 段の先頭行で、同じ値が省略されていたら表示し直す
+    if(S.groupDim && item.tr.parentNode.rows.length===1){
+      item.tr.querySelectorAll("td.dim").forEach(td=>td.classList.remove("dim"));
+      item.tr.classList.remove("gs");
+    }
+    placed++;
+  }
+  tables.forEach(t=>{ if(!t.tBodies[0].rows.length) t.remove(); });
+  return {placed, total: rows.length};
+}
+let lastFit = null;
+function render(){
+  for(const [id,key] of [["pExName","exName"],["pPlanLabel","planLabel"],["pListTitle","listTitle"],["pListSub","listSub"],["pFoot","footNote"]]){
+    const el=$(id); if(document.activeElement!==el && el.innerText!==S[key]) el.textContent = S[key];
+  }
+  $("pListSub").hidden = !S.listSub.trim() && document.activeElement!==$("pListSub");
+  $("pFoot").hidden = !S.footNote.trim() && document.activeElement!==$("pFoot");
+  styleHeadings();
+  $("plan").classList.toggle("bordered", !!S.planBorder);
+  numCols = {}; S.headers.forEach((h,i)=>{ numCols[i]=isNumCol(i); });
+  const vis = visibleCols();
+  let res = null, fsUsed = 9;
+  for(let fs = S.fsMax; fs >= 9 - 1e-9; fs -= 0.5){
+    res = flowAt(fs, vis, colWidths(fs)); fsUsed = fs;
+    if(res.placed === res.total) break;
+  }
+  lastFit = {fs: fsUsed, ...res};
+  renderImages();
+  updateStatus();
+  scaleSheets();
+  refreshColNums();
+  updPlanUi();
+}
+function refreshColNums(){
+  const w = colWidths(lastFit.fs);
+  S.headers.forEach((h,i)=>{ const n=$("colW"+i); if(n && S.cols[i].show && document.activeElement!==n) n.value=Math.round(w[i]); });
+}
+function updateStatus(){
+  const f = lastFit; if(!f) return;
+  if(f.placed === f.total){
+    setStatus(`${f.total}件を文字 ${fmt(f.fs)}pt で A3両面1枚に収めました。`, false);
+    $("fitInfo").textContent = `作品リスト ${fmt(f.fs)}pt ／ ${f.total}件`;
+  }else{
+    setStatus(`9pt でも ${f.total - f.placed}件が入りきりません（No.${S.rows[f.placed][0]||""} 以降）。平面図の枠を低くする、行の間隔を「詰める」にする、列を減らす、のいずれかをお試しください。`, true);
+    $("fitInfo").textContent = `入りきらない作品 ${f.total - f.placed}件`;
+  }
+}
+const FONTS = {list:"リストと同じ", gothic:"ゴシック", mincho:"明朝", ud:"UDゴシック", maru:"丸ゴシック"};
+function fontStack(k){
+  if(k==="list") k = S.font;
+  const cs = getComputedStyle(document.documentElement);
+  if(k==="mincho") return cs.getPropertyValue("--paper-mincho");
+  if(k==="ud") return '"BIZ UDPGothic","BIZ UDGothic","UD Digi Kyokasho NK-R","Hiragino Sans",'+cs.getPropertyValue("--paper-gothic");
+  if(k==="maru") return '"HG丸ｺﾞｼｯｸM-PRO","Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","Zen Maru Gothic","M PLUS Rounded 1c",'+cs.getPropertyValue("--paper-gothic");
+  return cs.getPropertyValue("--paper-gothic");
+}
+function styleHeadings(){
+  const h=$("pHead"), a=$("pExName"), b=$("pPlanLabel");
+  h.style.fontFamily = fontStack(S.headFont);
+  a.style.fontSize = Math.max(14,S.fsHead)+"pt"; b.style.fontSize = Math.max(14,S.fsSub)+"pt";
+  a.style.fontWeight = b.style.fontWeight = S.headBold ? "bold" : "normal";
+  h.style.justifyContent = {split:"space-between", left:"flex-start", center:"center", right:"flex-end"}[S.headAlign]||"space-between";
+  h.style.left = (+S.headX||0)+"mm"; h.style.marginTop = (+S.headY||0)+"mm";
+  h.classList.toggle("rule", !!S.headRule);
+  const T=$("pTitleBox"), t=$("pListTitle");
+  t.style.fontFamily = fontStack(S.titleFont); $("pListSub").style.fontFamily = fontStack(S.titleFont);
+  t.style.fontSize = Math.max(14,S.fsTitle)+"pt"; t.style.fontWeight = S.titleBold ? "bold":"normal";
+  T.style.alignItems = {left:"flex-start", center:"center", right:"flex-end"}[S.titleAlign]||"flex-start";
+  T.style.textAlign = S.titleAlign||"left";
+  T.style.left = (+S.titleX||0)+"mm"; T.style.marginTop = (+S.titleY||0)+"mm";
+  T.classList.toggle("rule", !!S.titleRule); T.style.paddingBottom = S.titleRule ? "1.2mm" : "0";
+}
+function fmt(n){ return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+let statusTimer=null;
+function setStatus(msg, warn, ms){
+  const el=$("status"); el.textContent=msg; el.classList.toggle("warn", !!warn);
+  clearTimeout(statusTimer);
+  if(ms) statusTimer=setTimeout(updateStatus, ms);
+}
+
+/* ---------- プレビュー倍率 ---------- */
+let scale = 1;
+function scaleSheets(){
+  const W = 420*MM, H = 297*MM;
+  if(S.zoom==="fit"){
+    const avail = $("stage").clientWidth - 32;
+    scale = Math.max(0.2, Math.min(1.2, avail / W));
+  }else scale = parseFloat(S.zoom);
+  for(const id of ["A","B"]){
+    $("wrap"+id).style.width = (W*scale)+"px";
+    $("wrap"+id).style.height = (H*scale)+"px";
+    $("sheet"+id).style.transform = `scale(${scale})`;
+  }
+}
+window.addEventListener("resize", ()=>{ if(S.zoom==="fit") scaleSheets(); });
+
+/* ---------- 平面図の画像 ---------- */
+function planW(){ return (420-24-14)/2; } // 段の幅 mm
+const FRAME_MAX = 420;
+function frameW(){ const c=planW(); return S.planW ? Math.max(30, Math.min(FRAME_MAX, S.planW)) : c; } // 平面図の枠の幅 mm（段の幅を超えてもよい）
+function renderImages(){
+  const plan = $("plan");
+  plan.querySelectorAll(".pimg").forEach(n=>n.remove());
+  $("planPh").hidden = S.images.length>0 || (S.texts||[]).length>0;
+  S.images.forEach(im=>{
+    const d = document.createElement("div");
+    d.className = "pimg" + (im.id===selId ? " sel":"");
+    d.dataset.id = im.id;
+    d.style.left = im.x+"mm"; d.style.top = im.y+"mm"; d.style.width = im.w+"mm";
+    const img = new Image(); img.src = im.src; img.alt = im.name||"平面図"; img.draggable=false;
+    const hd = document.createElement("div"); hd.className="hd"; hd.title="ドラッグで拡大・縮小";
+    d.append(img, hd);
+    plan.appendChild(d);
+  });
+  renderImgList();
+  renderTexts();
+}
+function renderImgList(){
+  const box = $("imgList"); box.innerHTML="";
+  S.images.forEach((im,k)=>{
+    const it = document.createElement("div");
+    it.className = "imgitem" + (im.id===selId ? " sel":"");
+    it.tabIndex = 0;
+    it.innerHTML = `<img alt=""><div class="nm"></div>`;
+    it.querySelector("img").src = im.src;
+    it.querySelector(".nm").textContent = `${k+1}. ${im.name||"画像"}（幅 ${Math.round(im.w)}mm）`;
+    it.onclick = ()=>select(im.id);
+    it.onkeydown = e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); select(im.id); } };
+    box.appendChild(it);
+  });
+  const cur = S.images.find(i=>i.id===selId);
+  $("selCtl").hidden = !cur;
+  if(cur){ $("selW").value = Math.round(cur.w); $("selWVal").textContent = Math.round(cur.w)+"mm"; }
+}
+function select(id){
+  selId = id;
+  document.querySelectorAll(".pimg").forEach(n=>n.classList.toggle("sel", n.dataset.id===id));
+  renderImgList();
+}
+function cur(){ return S.images.find(i=>i.id===selId); }
+function setImg(im, patch){
+  Object.assign(im, patch);
+  const n = document.querySelector(`.pimg[data-id="${im.id}"]`);
+  if(n){ n.style.left=im.x+"mm"; n.style.top=im.y+"mm"; n.style.width=im.w+"mm"; }
+  renderImgList(); save();
+  if(S.planAuto && !drag){ clearTimeout(setImg.t); setImg.t = setTimeout(render, 120); }
+}
+function resizeAround(im, nw){
+  nw = Math.max(10, Math.min(600, nw));
+  const k = nw/im.w, cx = im.x + im.w/2, cy = im.y + im.w*im.ar/2;
+  setImg(im, {w:nw, x: cx - nw/2, y: cy - nw*im.ar/2});
+}
+function planHeight(){ // mm
+  if(S.planAuto && S.images.length){
+    let b = 0; for(const im of S.images) b = Math.max(b, im.y + im.w*im.ar);
+    return Math.max(20, Math.min(250, Math.round(b*10)/10));
+  }
+  return S.planH;
+}
+function wideImg(im){ // 段の幅いっぱい・上端にそろえる
+  const W = frameW();
+  setImg(im, {w:W, x:0, y:0});
+  if(!S.planAuto && W*im.ar > S.planH){ S.planH = Math.min(250, Math.ceil(W*im.ar*2)/2); syncInputs(); }
+  render();
+}
+async function trimImg(im){ // 画像の周りの白い余白を取り除く
+  const img = new Image();
+  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=im.src; });
+  const c = document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight;
+  const g = c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0);
+  const d = g.getImageData(0,0,c.width,c.height).data;
+  let x0=c.width, y0=c.height, x1=-1, y1=-1;
+  for(let y=0;y<c.height;y++) for(let x=0;x<c.width;x++){
+    const p=(y*c.width+x)*4;
+    if(d[p]<235 || d[p+1]<235 || d[p+2]<235){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  }
+  if(x1<0){ setStatus("切り取れる余白が見つかりませんでした。", true, 4000); return; }
+  const pad = Math.round(Math.max(c.width,c.height)*0.004);
+  x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(c.width-1,x1+pad); y1=Math.min(c.height-1,y1+pad);
+  const cw=x1-x0+1, ch=y1-y0+1;
+  if(cw>=c.width-2 && ch>=c.height-2){ setStatus("この画像には切り取る白い余白がありません。", false, 4000); return; }
+  const o=document.createElement("canvas"); o.width=cw; o.height=ch; o.getContext("2d").drawImage(c,x0,y0,cw,ch,0,0,cw,ch);
+  const png = /^data:image\/(png|gif)/.test(im.src);
+  const oldW = im.w, scaleW = cw/c.width;
+  im.src = o.toDataURL(png ? "image/png" : "image/jpeg", 0.92);
+  im.ar = ch/cw;
+  im.w = oldW*scaleW; im.x += oldW*(x0/c.width); im.y += oldW*(img.naturalHeight/img.naturalWidth)*(y0/c.height);
+  renderImages(); save();
+  setStatus("白い余白を切り取りました。「幅いっぱい」で段の幅に広げられます。", false, 4000);
+}
+function fitImg(im){
+  if(S.planAuto){ wideImg(im); return; }
+  const W = frameW(), H = S.planH;
+  let w = W; if(w*im.ar > H) w = H/im.ar;
+  setImg(im, {w, x:(W-w)/2, y:(H-w*im.ar)/2});
+}
+async function addImageFiles(files){
+  const list = [...files].filter(f=>/^image\//.test(f.type));
+  if(!list.length) return;
+  for(const f of list){
+    try{
+      const {src, ar} = await loadImage(f);
+      const im = {id: "i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), src, ar, name:f.name, x:0, y:0, w:frameW()};
+      S.images.push(im);
+      selId = im.id;
+      renderImages(); fitImg(im);
+      if(S.images.length>1){ // 2枚目以降は少しずらして小さめに
+        const n=S.images.length-1; resizeAround(im, im.w*0.6); setImg(im,{x:im.x+n*6, y:im.y+n*6});
+      }
+    }catch(e){ setStatus(`「${f.name}」を読み込めませんでした。JPEGかPNGの画像をお選びください。`, true, 5000); }
+  }
+  renderImages(); save();
+}
+function loadImage(file){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onerror = rej;
+      img.onload = ()=>{
+        const max = 3000, big = Math.max(img.naturalWidth, img.naturalHeight);
+        const ar = img.naturalHeight/img.naturalWidth;
+        if(big <= max && fr.result.length < 2.5e6){ res({src: fr.result, ar}); return; }
+        const s = Math.min(1, max/big), c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth*s); c.height = Math.round(img.naturalHeight*s);
+        const g = c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
+        const png = /png|gif/.test(file.type);
+        res({src: c.toDataURL(png ? "image/png" : "image/jpeg", 0.9), ar});
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+/* ドラッグ移動・拡大縮小 */
+let drag = null;
+$("plan").addEventListener("pointerdown", e=>{
+  if(e.target.closest(".ptxt")) return;
+  if(selTxt){ selTxt=null; renderTexts(); }
+  const n = e.target.closest(".pimg");
+  if(!n){ if(selId){ selId=null; select(null); } return; }
+  const im = S.images.find(i=>i.id===n.dataset.id); if(!im) return;
+  select(im.id);
+  e.preventDefault();
+  n.setPointerCapture(e.pointerId);
+  drag = {im, n, mode: e.target.classList.contains("hd") ? "size" : "move", sx:e.clientX, sy:e.clientY, x:im.x, y:im.y, w:im.w};
+});
+$("plan").addEventListener("pointermove", e=>{
+  if(!drag) return;
+  const dx = (e.clientX-drag.sx)/(MM*scale), dy = (e.clientY-drag.sy)/(MM*scale);
+  const im = drag.im;
+  if(drag.mode==="move"){ im.x = drag.x+dx; im.y = drag.y+dy; }
+  else{ im.w = Math.max(10, drag.w + Math.max(dx, dy/im.ar)); }
+  drag.n.style.left=im.x+"mm"; drag.n.style.top=im.y+"mm"; drag.n.style.width=im.w+"mm";
+});
+function endDrag(){ if(drag){ drag=null; renderImgList(); save(); if(S.planAuto) render(); } }
+$("plan").addEventListener("pointerup", endDrag);
+$("plan").addEventListener("pointercancel", endDrag);
+document.addEventListener("keydown", e=>{
+  const im = cur(); if(!im) return;
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+  const st = e.shiftKey ? 5 : 1;
+  const map = {ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]};
+  if(map[e.key]){ e.preventDefault(); setImg(im,{x:im.x+map[e.key][0], y:im.y+map[e.key][1]}); }
+  else if(e.key==="+"||e.key===";"){ e.preventDefault(); resizeAround(im, im.w*1.05); }
+  else if(e.key==="-"){ e.preventDefault(); resizeAround(im, im.w/1.05); }
+  else if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); delSel(); }
+});
+function delSel(){ S.images = S.images.filter(i=>i.id!==selId); selId=null; renderImages(); save(); }
+$("selW").oninput = e=>{ const im=cur(); if(im) resizeAround(im, +e.target.value); };
+$("selPlus").onclick = ()=>{ const im=cur(); if(im) resizeAround(im, im.w*1.1); };
+$("selMinus").onclick = ()=>{ const im=cur(); if(im) resizeAround(im, im.w/1.1); };
+$("selFit").onclick = ()=>{ const im=cur(); if(!im) return; if(S.planAuto){ const W=frameW(), H=planHeight(); let w=W; if(w*im.ar>H) w=H/im.ar; setImg(im,{w,x:(W-w)/2,y:(H-w*im.ar)/2}); } else fitImg(im); };
+$("selWide").onclick = ()=>{ const im=cur(); if(im) wideImg(im); };
+$("selTrim").onclick = ()=>{ const im=cur(); if(im) trimImg(im).catch(()=>setStatus("画像を処理できませんでした。", true, 4000)); };
+$("selFront").onclick = ()=>{ const im=cur(); if(!im) return; S.images = S.images.filter(i=>i!==im).concat(im); renderImages(); save(); };
+$("selDel").onclick = delSel;
+$("fileImg").onchange = e=>{ addImageFiles(e.target.files); e.target.value=""; };
+
+/* ---------- データ読み込み（xlsx / csv / 貼り付け） ---------- */
+async function unzip(buf){
+  const dv = new DataView(buf), td = new TextDecoder();
+  let eocd = -1;
+  for(let i=buf.byteLength-22; i>=Math.max(0, buf.byteLength-65557); i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error("zip");
+  const cnt = dv.getUint16(eocd+10,true); let p = dv.getUint32(eocd+16,true);
+  const files = {};
+  for(let k=0;k<cnt;k++){
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true);
+    files[td.decode(new Uint8Array(buf,p+46,nl))] = {method, csize, lho};
+    p += 46+nl+xl+cl;
+  }
+  return async name=>{
+    const f = files[name]; if(!f) return null;
+    const ln=dv.getUint16(f.lho+26,true), lx=dv.getUint16(f.lho+28,true);
+    const data = new Uint8Array(buf, f.lho+30+ln+lx, f.csize);
+    if(f.method===0) return td.decode(data);
+    if(typeof DecompressionStream==="undefined") throw new Error("nods");
+    const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+    return td.decode(out);
+  };
+}
+const xml = s => new DOMParser().parseFromString(s, "application/xml");
+const tags = (n, t) => [...n.getElementsByTagNameNS("*", t)];
+function siText(si){ // ふりがな(rPh)は除外
+  return tags(si,"t").filter(t=>!closestNS(t,"rPh")).map(t=>t.textContent).join("");
+}
+function closestNS(n, local){ for(let p=n.parentNode; p && p.nodeType===1; p=p.parentNode){ if(p.localName===local) return p; } return null; }
+let xlsxCtx = null;
+async function readXlsx(buf){
+  const read = await unzip(buf);
+  const wb = xml(await read("xl/workbook.xml"));
+  const rels = xml(await read("xl/_rels/workbook.xml.rels"));
+  const relMap = {}; tags(rels,"Relationship").forEach(r=>relMap[r.getAttribute("Id")] = r.getAttribute("Target"));
+  const sheets = tags(wb,"sheet").filter(s=>s.getAttribute("state")!=="hidden").map(s=>{
+    const rid = s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id") || s.getAttribute("r:id");
+    let t = relMap[rid]||""; t = t.startsWith("/") ? t.slice(1) : "xl/"+t.replace(/^\.\//,"");
+    return {name:s.getAttribute("name"), path:t};
+  });
+  const ssx = await read("xl/sharedStrings.xml");
+  const sst = ssx ? tags(xml(ssx),"si").map(siText) : [];
+  return {read, sheets, sst};
+}
+function colIndex(ref){ let n=0; for(const ch of ref.replace(/\d+/g,"")) n = n*26 + (ch.charCodeAt(0)-64); return n-1; }
+async function readSheet(ctx, idx){
+  const doc = xml(await ctx.read(ctx.sheets[idx].path));
+  const grid = [];
+  tags(doc,"row").forEach((row, ri)=>{
+    const r = (+row.getAttribute("r")||ri+1)-1;
+    tags(row,"c").forEach((c, ci)=>{
+      const ref = c.getAttribute("r"); const k = ref ? colIndex(ref) : ci;
+      const t = c.getAttribute("t"); const v = tags(c,"v")[0];
+      let val = "";
+      if(t==="s") val = v ? (ctx.sst[+v.textContent]||"") : "";
+      else if(t==="inlineStr"){ const is=tags(c,"is")[0]; val = is ? siText(is) : ""; }
+      else if(t==="b") val = v && v.textContent==="1" ? "TRUE" : "FALSE";
+      else val = v ? v.textContent : "";
+      if(/^-?\d+\.\d{6,}$/.test(val)) val = String(+(+val).toPrecision(12));
+      (grid[r] ||= [])[k] = val;
+    });
+  });
+  return grid.map(r=>r ? Array.from(r, x=>x==null?"":x) : []);
+}
+function parseDelimited(text){
+  text = text.replace(/^﻿/,"").replace(/\r\n?/g,"\n");
+  const first = text.split("\n")[0];
+  const d = (first.split("\t").length >= first.split(",").length) ? "\t" : ",";
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=ch; }
+    else if(ch==='"' && cell==="") q=true;
+    else if(ch===d){ row.push(cell); cell=""; }
+    else if(ch==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; }
+    else cell+=ch;
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+function adoptGrid(grid, source, sheetName){
+  grid = grid.map(r=>r.map(c=>String(c??"").replace(/\r/g,"").trim()));
+  grid = grid.filter(r=>r.some(c=>c!==""));
+  if(grid.length<2){ setStatus("見出し行と作品の行が見つかりませんでした。1行目に見出し、2行目以降に作品が並んだ表を読み込んでください。", true, 6000); return; }
+  let n = Math.max(...grid.map(r=>r.length));
+  while(n>0 && grid.every(r=>!(r[n-1]))) n--;
+  grid = grid.map(r=>{ const a=r.slice(0,n); while(a.length<n) a.push(""); return a; });
+  S.headers = grid[0].map((h,i)=>h || `列${i+1}`);
+  S.rows = grid.slice(1);
+  S.cols = S.headers.map(()=>({show:true, w:null}));
+  S.groupCol = guessGroupCol(S.headers, S.rows);
+  S.source = source;
+  const m = (sheetName||source).match(/作品リスト[_＿](.+?)[_＿]\d{6,8}/);
+  if(m){ S.exName = "「"+m[1]+"」"; S.listTitle = "「"+m[1]+"」作品リスト"; syncInputs(); }
+  buildColsUi(); render(); save();
+}
+async function loadDataFile(file){
+  try{
+    if(/\.(xlsx|xlsm)$/i.test(file.name)){
+      const ctx = await readXlsx(await file.arrayBuffer());
+      xlsxCtx = {ctx, name:file.name};
+      const sel = $("sheetSel"); sel.innerHTML="";
+      ctx.sheets.forEach((s,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=s.name; sel.appendChild(o); });
+      $("sheetSelWrap").hidden = ctx.sheets.length<2;
+      await useSheet(0);
+    }else{
+      adoptGrid(parseDelimited(await file.text()), file.name);
+    }
+  }catch(e){
+    setStatus(e.message==="nods" ? "このブラウザはExcelファイルの読み込みに対応していません。最新のEdge・Chrome・Safariをお使いいただくか、「スプレッドシートから貼り付ける」をご利用ください。"
+      : `「${file.name}」を読み込めませんでした。.xlsx か CSV 形式で保存したファイルをお選びください。`, true, 7000);
+  }
+}
+async function useSheet(i){
+  const {ctx, name} = xlsxCtx;
+  adoptGrid(await readSheet(ctx, i), `${name}（${ctx.sheets[i].name}）`, ctx.sheets[i].name);
+}
+$("sheetSel").onchange = e=>useSheet(+e.target.value);
+$("fileData").onchange = e=>{ if(e.target.files[0]) loadDataFile(e.target.files[0]); e.target.value=""; };
+$("pasteApply").onclick = ()=>{ const t=$("pasteArea").value; if(t.trim()){ adoptGrid(parseDelimited(t), "貼り付けたデータ"); $("pasteArea").value=""; } };
+
+/* 紙面へのドラッグ＆ドロップ */
+const stage = $("stage");
+stage.addEventListener("dragover", e=>{ e.preventDefault(); stage.classList.add("dropping"); });
+stage.addEventListener("dragleave", e=>{ if(e.target===stage) stage.classList.remove("dropping"); });
+stage.addEventListener("drop", e=>{
+  e.preventDefault(); stage.classList.remove("dropping");
+  const fs = [...e.dataTransfer.files];
+  const data = fs.find(f=>/\.(xlsx|xlsm|csv|tsv|txt)$/i.test(f.name));
+  if(data) loadDataFile(data);
+  addImageFiles(fs);
+});
+
+/* ---------- 設定UI ---------- */
+function buildColsUi(){
+  const box = $("colsUi"); box.innerHTML="";
+  const w = colWidths(lastFit ? lastFit.fs : S.fsMax);
+  S.headers.forEach((h,i)=>{
+    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=S.cols[i].show; cb.id="colShow"+i;
+    const lb = document.createElement("label"); lb.htmlFor=cb.id; lb.textContent=h;
+    const fl = document.createElement("label"); fl.className="r"; fl.style.fontSize="11.5px"; fl.title="改行位置以外では折り返さず、必要なら文字を小さくして1行に収めます（最小9pt）";
+    const fc = document.createElement("input"); fc.type="checkbox"; fc.id="colFit"+i; fc.checked = isFit(i); fc.disabled = !S.cols[i].show || isNumCol(i);
+    fc.onchange = ()=>{ S.cols[i].fit = fc.checked; render(); save(); };
+    fl.append(fc, document.createTextNode("1行"));
+    const nm = document.createElement("input"); nm.type="number"; nm.min="1"; nm.max="80"; nm.step="1"; nm.id="colW"+i;
+    nm.value = S.cols[i].show ? Math.round(w[i]) : ""; nm.disabled = !S.cols[i].show; nm.title="幅の比率（%）";
+    cb.onchange = ()=>{ S.cols[i].show = cb.checked; buildColsUi(); render(); save(); };
+    nm.onchange = ()=>{
+      // 現在の比率をすべて固定し、この列だけ変える
+      const cw = colWidths(lastFit ? lastFit.fs : S.fsMax);
+      visibleCols().forEach(j=>{ S.cols[j].w = cw[j]; });
+      S.cols[i].w = Math.max(1, +nm.value||1);
+      buildColsUi(); render(); save();
+    };
+    box.append(cb, lb, fl, nm);
+  });
+  const gs = $("groupCol"); gs.innerHTML = `<option value="-1">なし</option>`;
+  S.headers.forEach((h,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=h; gs.appendChild(o); });
+  gs.value = S.groupCol;
+  $("dataInfo").textContent = `${S.source}　${S.rows.length}件・${S.headers.length}列`;
+}
+$("colAuto").onclick = ()=>{ S.cols.forEach(c=>c.w=null); buildColsUi(); render(); save(); };
+
+const bind = [
+  ["exName","value"],["planLabel","value"],["listTitle","value"],["listSub","value"],["footNote","value"],
+  ["fsHead","value",Number],["fsSub","value",Number],["fsTitle","value",Number],
+  ["headFont","value"],["headAlign","value"],["headX","value",Number],["headY","value",Number],["headBold","checked"],["headRule","checked"],
+  ["titleFont","value"],["titleAlign","value"],["titleX","value",Number],["titleY","value",Number],["titleBold","checked"],["titleRule","checked"],["fsMax","value",Number],["planH","value",Number],
+  ["planBorder","checked"],["planAuto","checked"],["font","value"],["pad","value"],["groupDim","checked"],["zoom","value"]
+];
+function updPlanUi(){
+  const auto = S.planAuto && S.images.length>0, h = planHeight();
+  $("planHVal").textContent = auto ? "（画像に合わせて自動）" : "";
+  if(document.activeElement!==$("planH")) $("planH").value = h;
+  if(document.activeElement!==$("planHNum")) $("planHNum").value = h;
+  $("planRsLbl").textContent = `枠の高さ ${fmt(h)}mm　ドラッグで調整`;
+}
+/* 枠の高さを手で決める（自動はオフになる） */
+function setPlanH(h, now){
+  S.planH = Math.max(20, Math.min(250, Math.round(h*2)/2));
+  S.planAuto = false; $("planAuto").checked = false;
+  document.documentElement.style.setProperty("--plan-h", S.planH+"mm");
+  updPlanUi(); save();
+  clearTimeout(setPlanH.t);
+  if(now) render(); else setPlanH.t = setTimeout(render, 90);
+}
+{
+  const rs = $("planRs"); let st = null;
+  rs.addEventListener("pointerdown", e=>{ e.preventDefault(); e.stopPropagation(); rs.setPointerCapture(e.pointerId); rs.classList.add("on"); st = {y:e.clientY, h:planHeight()}; });
+  rs.addEventListener("pointermove", e=>{ if(st) setPlanH(st.h + (e.clientY-st.y)/(MM*scale)); });
+  const end = ()=>{ if(st){ st=null; rs.classList.remove("on"); setPlanH(S.planH, true); } };
+  rs.addEventListener("pointerup", end); rs.addEventListener("pointercancel", end);
+  rs.addEventListener("keydown", e=>{ if(e.key==="ArrowUp"||e.key==="ArrowDown"){ e.preventDefault(); setPlanH(planHeight() + (e.key==="ArrowDown"?1:-1)*(e.shiftKey?5:1)); } });
+  rs.tabIndex = 0;
+}
+function applyPlanW(){
+  const st = document.documentElement.style, w = frameW();
+  st.setProperty("--plan-w", w+"mm");
+  st.setProperty("--plan-x", (+S.planX||0)+"mm");
+  if(document.activeElement!==$("planXNum")) $("planXNum").value = +S.planX||0;
+  // 右の段にかかるときは、右の段のリストを枠の下から始める
+  const c = planW(), gut = 14, off = {left:0, center:(c-w)/2, right:c-w}[S.planAlign||"left"] + (+S.planX||0);
+  const over = off + w > c + gut - 0.01;
+  $("planWideNote").hidden = !(w > c + 0.01 || off < -0.01 || off + w > c + 0.01);
+  const f1 = $("f1");
+  if(over){
+    const plan = $("plan"), c0 = $("c0");
+    const bottom = (plan.offsetTop - c0.offsetTop + plan.offsetHeight)/MM + 3;
+    f1.style.marginTop = bottom + "mm";
+  }else f1.style.marginTop = "";
+  st.setProperty("--plan-align", {left:"flex-start", center:"center", right:"flex-end"}[S.planAlign]||"flex-start");
+  const side = S.planAlign==="right" ? "at-l" : "at-r";
+  for(const id of ["planRw","planRc"]){ $(id).classList.remove("at-l","at-r"); $(id).classList.add(side); }
+  if(document.activeElement!==$("planWR")) $("planWR").value = w;
+  if(document.activeElement!==$("planWNum")) $("planWNum").value = Math.round(w*10)/10;
+  $("planWVal").textContent = Math.abs(w-planW())<0.01 ? "（段の幅いっぱい）" : w > planW() ? "（段の幅を超えています）" : "";
+  $("planAlign").value = S.planAlign||"left";
+}
+function setPlanW(w){
+  const c = planW();
+  w = Math.max(30, Math.min(FRAME_MAX, Math.round(w*2)/2));
+  S.planW = Math.abs(w-c) < 0.01 ? null : w;
+  applyPlanW(); save();
+  // 画像に合わせて自動のときは、枠が狭くなると画像の下端が変わらないので高さはそのまま
+  clearTimeout(setPlanW.t); setPlanW.t = setTimeout(render, 90);
+}
+{
+  const mk = (el, mode)=>{
+    let st=null;
+    el.addEventListener("pointerdown", e=>{ e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); el.classList.add("on"); st={x:e.clientX, y:e.clientY, w:frameW(), h:planHeight()}; });
+    el.addEventListener("pointermove", e=>{
+      if(!st) return;
+      const k = S.planAlign==="center" ? 2 : 1, sign = S.planAlign==="right" ? -1 : 1;
+      setPlanW(st.w + sign*k*(e.clientX-st.x)/(MM*scale));
+      if(mode==="both") setPlanH(st.h + (e.clientY-st.y)/(MM*scale));
+    });
+    const end = ()=>{ if(st){ st=null; el.classList.remove("on"); render(); } };
+    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  };
+  mk($("planRw"), "w"); mk($("planRc"), "both");
+}
+$("planWR").addEventListener("input", ()=>setPlanW(+$("planWR").value));
+$("planWNum").addEventListener("change", ()=>{ const v=+$("planWNum").value; if(v>0) setPlanW(v); });
+$("planAlign").addEventListener("change", ()=>{ S.planAlign=$("planAlign").value; applyPlanW(); save(); render(); });
+$("planFull").onclick = ()=>{ S.planX = 0; setPlanW(planW()); };
+$("planX0").onclick = ()=>{ S.planX = 0; applyPlanW(); save(); render(); };
+$("planXNum").addEventListener("change", ()=>{ const v=+$("planXNum").value; if(!isNaN(v)){ S.planX=Math.max(-150,Math.min(300,v)); applyPlanW(); save(); render(); } });
+$("planHNum").addEventListener("change", ()=>{ const v=+$("planHNum").value; if(v>0) setPlanH(v, true); });
+$("planSnap").onclick = ()=>{
+  if(!S.images.length){ setStatus("先に平面図の画像を追加してください。", true, 4000); return; }
+  let b=0; for(const im of S.images) b=Math.max(b, im.y + im.w*im.ar);
+  setPlanH(b, true);
+};
+function syncInputs(){
+  for(const [id,prop] of bind) $(id)[prop] = S[id];
+  $("groupCol").value = S.groupCol;
+  updPlanUi();
+  $("fsMaxVal").textContent = fmt(S.fsMax)+"pt";
+}
+let rt=null;
+for(const [id,prop,cast] of bind){
+  $(id).addEventListener("input", ()=>{
+    let v = $(id)[prop]; if(cast) v = cast(v);
+    if(id==="planH"){ setPlanH(v); return; }
+    if(cast===Number && isNaN(v)) return;
+    S[id] = v;
+    updPlanUi(); $("fsMaxVal").textContent = fmt(S.fsMax)+"pt";
+    clearTimeout(rt); rt = setTimeout(()=>{ if(id==="zoom") scaleSheets(); else render(); }, id==="planH"||id==="fsMax" ? 60 : 150);
+    save();
+  });
+}
+for(const id of ["fsHead","fsSub","fsTitle"]){
+  $(id).addEventListener("change", ()=>{ const v=Math.max(14, Math.min(40, +$(id).value||14)); S[id]=v; $(id).value=v; render(); save(); });
+}
+$("groupCol").onchange = e=>{ S.groupCol = +e.target.value; buildColsUi(); render(); save(); };
+$("printBtn").onclick = ()=>{ select(null); window.print(); };
+$("resetBtn").onclick = ()=>{ $("resetConfirm").hidden=false; };
+$("resetNo").onclick = ()=>{ $("resetConfirm").hidden=true; };
+$("resetYes").onclick = ()=>{ try{localStorage.removeItem(KEY);}catch(e){} S = defaultState(); selId=null; $("resetConfirm").hidden=true; syncInputs(); buildColsUi(); render(); };
+window.addEventListener("beforeprint", ()=>{ document.querySelectorAll(".pimg.sel").forEach(n=>n.classList.remove("sel")); });
+
+/* 書体の選択肢 */
+for(const id of ["headFont","titleFont"]){ const s=$(id); for(const [k,v] of Object.entries(FONTS)){ const o=document.createElement("option"); o.value=k; o.textContent=v; s.appendChild(o); } }
+/* 紙面の見出しを直接編集 */
+document.querySelectorAll("[contenteditable][data-key]").forEach(el=>{
+  const key = el.dataset.key;
+  el.addEventListener("input", ()=>{
+    S[key] = el.innerText.replace(/\n$/,"");
+    const inp = $(key); if(inp) inp.value = S[key];
+    save();
+  });
+  el.addEventListener("keydown", e=>{
+    if(e.key==="Enter" && !e.shiftKey && key!=="listSub" && key!=="footNote"){ e.preventDefault(); el.blur(); }
+    if(e.key==="Escape") el.blur();
+  });
+  el.addEventListener("paste", e=>{ // 書式を持ち込まない
+    e.preventDefault();
+    const tx = (e.clipboardData||window.clipboardData).getData("text/plain");
+    document.execCommand("insertText", false, tx);
+  });
+  el.addEventListener("blur", ()=>{ S[key] = el.innerText.replace(/\n$/,""); save(); render(); });
+});
+/* ---------- 図面上のテキスト ---------- */
+let selTxt = null, tdrag = null;
+function curTxt(){ return (S.texts||[]).find(x=>x.id===selTxt); }
+function renderTexts(){
+  const plan = $("plan");
+  S.texts = S.texts || [];
+  plan.querySelectorAll(".ptxt").forEach(n=>{ if(!S.texts.find(x=>x.id===n.dataset.id)) n.remove(); });
+  S.texts.forEach(o=>{
+    let d = plan.querySelector(`.ptxt[data-id="${o.id}"]`);
+    if(!d){
+      d = document.createElement("div"); d.className="ptxt"; d.dataset.id=o.id;
+      const g = document.createElement("div"); g.className="grip"; g.title="ドラッグで移動";
+      const tx = document.createElement("div"); tx.className="tx"; tx.contentEditable="true"; tx.spellcheck=false;
+      const ob = ()=>S.texts.find(x=>x.id===o.id);
+      tx.addEventListener("focus", ()=>{ if(selTxt!==o.id){ selTxt=o.id; renderTexts(); } });
+      tx.addEventListener("input", ()=>{ const b=ob(); if(!b) return; b.text = tx.innerText.replace(/\n$/,""); renderTxtList(); save(); });
+      tx.addEventListener("paste", e=>{ e.preventDefault(); document.execCommand("insertText", false, (e.clipboardData||window.clipboardData).getData("text/plain")); });
+      tx.addEventListener("keydown", e=>{
+        if(e.key==="Escape") tx.blur();
+        if(e.altKey && /^Arrow/.test(e.key)){ e.preventDefault(); const st=e.shiftKey?5:1; const b=ob();
+          b.x += e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0; b.y += e.key==="ArrowUp"?-st:e.key==="ArrowDown"?st:0; placeTxt(d,b); save(); }
+      });
+      g.addEventListener("pointerdown", e=>{
+        e.preventDefault(); e.stopPropagation(); g.setPointerCapture(e.pointerId);
+        const b=ob(); selTxt=o.id; renderTexts();
+        tdrag={b, d, sx:e.clientX, sy:e.clientY, x:b.x, y:b.y};
+      });
+      g.addEventListener("pointermove", e=>{ if(!tdrag) return; const b=tdrag.b;
+        b.x = tdrag.x + (e.clientX-tdrag.sx)/(MM*scale); b.y = tdrag.y + (e.clientY-tdrag.sy)/(MM*scale); placeTxt(tdrag.d, b); });
+      const end = ()=>{ if(tdrag){ tdrag=null; save(); } };
+      g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+      d.append(g, tx); plan.appendChild(d);
+    }
+    const tx = d.querySelector(".tx");
+    if(document.activeElement!==tx && tx.innerText!==o.text) tx.textContent = o.text;
+    placeTxt(d, o);
+    d.classList.toggle("sel", o.id===selTxt);
+    d.classList.toggle("bg", !!o.bg); d.classList.toggle("box", !!o.box); d.classList.toggle("vert", !!o.vert);
+    d.style.fontSize = o.size+"pt"; d.style.fontWeight = o.bold?"bold":"normal"; d.style.color = o.color;
+    d.style.letterSpacing = (o.ls||0)+"em"; d.style.lineHeight = String(o.lh||1.35);
+    d.style.fontFamily = fontStack(o.font); d.style.textAlign = o.align;
+    d.style.zIndex = 5 + S.texts.indexOf(o);
+  });
+  $("planPh").hidden = S.images.length>0 || S.texts.length>0;
+  renderTxtList();
+}
+function spLabels(o){
+  const ls=+(o.ls||0), lh=+(o.lh||1.35);
+  $("tLsVal").textContent = (ls===0 ? "標準" : (ls>0?"+":"")+ls.toFixed(2)+"字");
+  $("tLhVal").textContent = lh.toFixed(2)+"倍" + (Math.abs(lh-1.35)<0.001 ? "（標準）" : "");
+}
+function placeTxt(d, o){ d.style.left = o.x+"mm"; d.style.top = o.y+"mm"; }
+function renderTxtList(){
+  const box = $("txtList"); box.innerHTML="";
+  (S.texts||[]).forEach((o,k)=>{
+    const it = document.createElement("div"); it.className = "imgitem" + (o.id===selTxt?" sel":""); it.tabIndex=0;
+    it.style.gridTemplateColumns="1fr";
+    const nm = document.createElement("div"); nm.className="nm"; nm.textContent = `${k+1}. ${(o.text||"（空のテキスト）").replace(/\n/g," ")}（${fmt(o.size)}pt）`;
+    it.appendChild(nm);
+    it.onclick = ()=>{ selTxt=o.id; renderTexts(); };
+    it.onkeydown = e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selTxt=o.id; renderTexts(); } };
+    box.appendChild(it);
+  });
+  const o = curTxt(); $("txtCtl").hidden = !o;
+  if(o){ $("tSize").value=o.size; $("tFont").value=o.font; $("tColor").value=o.color; $("tAlign").value=o.align;
+    $("tLs").value=o.ls||0; $("tLh").value=o.lh||1.35; spLabels(o);
+    $("tBold").checked=!!o.bold; $("tVert").checked=!!o.vert; $("tBg").checked=!!o.bg; $("tBox").checked=!!o.box; }
+}
+function addText(base){
+  S.texts = S.texts || [];
+  const n = S.texts.length;
+  const o = Object.assign({text:"テキスト", x:8+n*4, y:8+n*4, size:12, font:"list", ls:0, lh:1.35, bold:false, color:"#111111", align:"left", vert:false, bg:false, box:false}, base||{}, {id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)});
+  S.texts.push(o); selTxt=o.id; renderTexts(); save();
+  const tx = $("plan").querySelector(`.ptxt[data-id="${o.id}"] .tx`);
+  if(tx){ tx.focus(); const r=document.createRange(); r.selectNodeContents(tx); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+}
+$("txtAdd").onclick = ()=>addText();
+$("tDup").onclick = ()=>{ const o=curTxt(); if(o) addText(Object.assign({}, o, {x:o.x+4, y:o.y+4})); };
+$("tSpReset").onclick = ()=>{ const o=curTxt(); if(!o) return; o.ls=0; o.lh=1.35; renderTexts(); save(); };
+$("tDel").onclick = ()=>{ S.texts = S.texts.filter(x=>x.id!==selTxt); selTxt=null; renderTexts(); save(); };
+for(const [id,key,kind] of [["tSize","size","num"],["tLs","ls","rng"],["tLh","lh","rng"],["tFont","font"],["tColor","color"],["tAlign","align"],["tBold","bold","chk"],["tVert","vert","chk"],["tBg","bg","chk"],["tBox","box","chk"]]){
+  $(id).addEventListener(kind==="chk"?"change":"input", ()=>{
+    const o=curTxt(); if(!o) return;
+    let v = kind==="chk" ? $(id).checked : $(id).value;
+    if(kind==="num"){ v=+v; if(!(v>=6)) return; v=Math.min(60,v); }
+    if(kind==="rng"){ v=+v; o[key]=v; spLabels(o); const d=$("plan").querySelector(`.ptxt[data-id="${o.id}"]`);
+      if(d){ d.style.letterSpacing=(o.ls||0)+"em"; d.style.lineHeight=String(o.lh||1.35); } save(); return; }
+    o[key]=v; renderTexts(); save();
+  });
+}
+{ const s=$("tFont"); for(const [k,v] of Object.entries(FONTS)){ const op=document.createElement("option"); op.value=k; op.textContent=v; s.appendChild(op); } }
+/* ---------- 起動 ---------- */
+syncInputs(); buildColsUi();
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(()=>{ lineCache.clear(); render(); });
+render();
+</script>
+</body>
+</html>

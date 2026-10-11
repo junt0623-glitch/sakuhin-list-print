@@ -1,0 +1,17 @@
+{
+  "name": "sakuhin-list-print",
+  "version": "1.0.0",
+  "description": "作品リスト印刷工房：展覧会の作品リストをA3両面1枚に組む単一HTMLツール",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  },
+  "private": true
+}
