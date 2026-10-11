@@ -83,6 +83,8 @@ button.danger{border-color:var(--warn);color:var(--warn)}
   [contenteditable]:focus{box-shadow:0 0 0 .4mm #2c6e66;background:rgba(44,110,102,.06)}
   [contenteditable]:empty::before{content:attr(data-ph);color:#9aa}
 }
+.noplan #pHead,.noplan #plan{display:none}
+.hblock[hidden]{display:none}
 .plan{position:relative;height:var(--plan-h);width:var(--plan-w,100%);left:var(--plan-x,0mm);overflow:hidden;flex:none;margin-bottom:3mm;align-self:var(--plan-align,flex-start)}
 .plan.bordered{border:.3mm solid #444}
 .plan-rs,.plan-rw,.plan-rc{display:none}
@@ -179,7 +181,7 @@ button.danger{border-color:var(--warn);color:var(--warn)}
     <fieldset>
       <legend>2　見出し</legend>
       <p class="hint">紙面の見出しをクリックすると、その場で書き換えられます（Shift+Enterで改行）。</p>
-      <div class="hblock">
+      <div class="hblock" id="headCtl">
         <div class="hb-title">平面図の上の見出し</div>
         <div class="row">
           <label class="f grow">展覧会名<input id="exName" type="text"></label>
@@ -223,6 +225,9 @@ button.danger{border-color:var(--warn);color:var(--warn)}
 
     <fieldset>
       <legend>3　平面図（表面・左上）</legend>
+      <label class="f">紙面の型<select id="layout"><option value="plan">順路案内あり（見出し・平面図＋作品リスト）</option><option value="list">順路案内なし（作品リストのみ）</option></select></label>
+      <p class="hint" id="noPlanNote" hidden>順路案内の見出しと平面図を紙面から外し、作品リストを表面の一番上から始めます。読み込んだ画像や文字は残っているので、「順路案内あり」に戻せば元どおりになります。</p>
+      <div id="planCtl">
       <div class="row">
         <label class="btn primary" style="background:var(--accent);color:var(--panel)">画像を追加<input id="fileImg" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple></label>
         <span class="hint">JPEG・PNG、複数可。枠へドラッグでも追加できます。</span>
@@ -292,6 +297,7 @@ button.danger{border-color:var(--warn);color:var(--warn)}
           </div>
           <p class="hint">文字の左上の丸い取っ手をドラッグして移動します。文字を選んだまま Alt＋矢印キーで1mm（Shiftも押すと5mm）ずつ動かせます。</p>
         </div>
+      </div>
       </div>
     </fieldset>
 
@@ -366,6 +372,7 @@ function defaultState(){
     fsHead: 16, fsSub: 14, fsTitle: 14, fsMax: 12,
     headFont: "list", headAlign: "split", headX: 0, headY: 0, headBold: true, headRule: true,
     titleFont: "list", titleAlign: "left", titleX: 0, titleY: 0, titleBold: true, titleRule: false,
+    layout: "plan",
     planH: 120, planBorder: false, planAuto: true, planW: null, planAlign: "left", planX: 0,
     font: "gothic", pad: "0.6mm",
     groupCol: guessGroupCol(DEFAULT_DATA.headers, DEFAULT_DATA.rows),
@@ -518,6 +525,10 @@ function applyVars(fs){
   st.setProperty("--fs-note", Math.max(9, Math.min(11, fs))+"pt");
   st.setProperty("--pad", S.pad);
   st.setProperty("--plan-h", planHeight()+"mm");
+  const noPlan = S.layout==="list";
+  $("sheetA").classList.toggle("noplan", noPlan);
+  $("planCtl").hidden = $("headCtl").hidden = noPlan;
+  $("noPlanNote").hidden = !noPlan;
   applyPlanW();
   st.setProperty("--paper-font", S.font==="mincho" ? "var(--paper-mincho)" : "var(--paper-gothic)");
 }
@@ -1034,7 +1045,7 @@ const bind = [
   ["fsHead","value",Number],["fsSub","value",Number],["fsTitle","value",Number],
   ["headFont","value"],["headAlign","value"],["headX","value",Number],["headY","value",Number],["headBold","checked"],["headRule","checked"],
   ["titleFont","value"],["titleAlign","value"],["titleX","value",Number],["titleY","value",Number],["titleBold","checked"],["titleRule","checked"],["fsMax","value",Number],["planH","value",Number],
-  ["planBorder","checked"],["planAuto","checked"],["font","value"],["pad","value"],["groupDim","checked"],["zoom","value"]
+  ["layout","value"],["planBorder","checked"],["planAuto","checked"],["font","value"],["pad","value"],["groupDim","checked"],["zoom","value"]
 ];
 function updPlanUi(){
   const auto = S.planAuto && S.images.length>0, h = planHeight();
@@ -1068,7 +1079,7 @@ function applyPlanW(){
   if(document.activeElement!==$("planXNum")) $("planXNum").value = +S.planX||0;
   // 右の段にかかるときは、右の段のリストを枠の下から始める
   const c = planW(), gut = 14, off = {left:0, center:(c-w)/2, right:c-w}[S.planAlign||"left"] + (+S.planX||0);
-  const over = off + w > c + gut - 0.01;
+  const over = S.layout!=="list" && off + w > c + gut - 0.01;
   $("planWideNote").hidden = !(w > c + 0.01 || off < -0.01 || off + w > c + 0.01);
   const f1 = $("f1");
   if(over){

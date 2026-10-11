@@ -136,3 +136,28 @@ test('bt12 印刷するとA3横の2ページになる', async ({ page }) => {
   expect(pages).toBe(2);
   expect(s).toMatch(/MediaBox\s*\[\s*0\s+0\s+119[01]\.\d+\s+841\.\d+/);
 });
+
+test('bt13 「順路案内なし」を選ぶと見出しと平面図が消え、リストが段の上から始まる', async ({ page }) => {
+  const errors = await open(page);
+  await loadFixture(page);
+  const before = await page.evaluate(() => [document.getElementById('f0').offsetTop - document.getElementById('c0').offsetTop, lastFit.fs]);
+  await page.selectOption('#layout', 'list');
+  await expect(page.locator('#pHead')).toBeHidden();
+  await expect(page.locator('#plan')).toBeHidden();
+  await expect(page.locator('#planCtl')).toBeHidden();
+  await expect(page.locator('#pListTitle')).toBeVisible();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(() => [document.getElementById('f0').offsetTop - document.getElementById('c0').offsetTop, lastFit.fs, lastFit.placed, lastFit.total, JSON.parse(localStorage.getItem('sakuhin-list-print-v4')).layout]);
+  expect(after[0]).toBeLessThan(before[0] - 100);
+  expect(after[1]).toBeGreaterThanOrEqual(before[1]);
+  expect(after[2]).toBe(after[3]);
+  expect(after[4]).toBe('list');
+  await page.reload();
+  await page.waitForFunction(() => typeof lastFit !== 'undefined' && lastFit);
+  await expect(page.locator('#layout')).toHaveValue('list');
+  await expect(page.locator('#plan')).toBeHidden();
+  await page.selectOption('#layout', 'plan');
+  await expect(page.locator('#plan')).toBeVisible();
+  await expect(page.locator('#pHead')).toBeVisible();
+  expect(errors).toEqual([]);
+});
