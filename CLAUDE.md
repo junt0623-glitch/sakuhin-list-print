@@ -44,3 +44,11 @@ npm install
 npx playwright test
 ```
 `tests/tool.spec.js` に bt01〜bt12。`tests/fixtures/` に Excel 見本とテスト用画像。
+
+## 作業の進め方（Claude Code）
+1. 依頼を受けたら、まず `index.html` の該当箇所を読み、紙面の仕様（上記）と食い違わないか確かめる。食い違う指示は利用者に確認してから直す。
+2. 修正は `index.html` だけで完結させる（ファイルを分けない・外部読み込みを足さない）。
+3. 直した内容を確かめる bt テストを `tests/tool.spec.js` に追加する（連番を続ける）。
+4. `npx playwright test` を実行し、全件通ったことを確認してから報告する。紙面の見た目が変わる修正は、PDF（`page.pdf`）を出して目で確認する。
+5. 利用者への報告は日本語で、何が変わったか・どう操作するかを短く。コードの説明は求められたときだけ。
+6. 変更は main に入れると GitHub Pages（https://junt0623-glitch.github.io/sakuhin-list-print/）に反映される。
